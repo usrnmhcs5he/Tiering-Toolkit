@@ -8,6 +8,7 @@
 ![Active Directory](https://img.shields.io/badge/Active%20Directory-DFL%202012%20R2%2B-0078D4)
 ![Tier0-Toolkit](https://img.shields.io/badge/Tier0--Toolkit-v8-2EA44F)
 ![Tier0-PawCheck](https://img.shields.io/badge/Tier0--PawCheck-v3-2EA44F)
+![Tier0-ManualChecks](https://img.shields.io/badge/Tier0--ManualChecks-v3-2EA44F)
 ![PSScriptAnalyzer](https://img.shields.io/badge/PSScriptAnalyzer-5.1%20compatibility%20clean-brightgreen)
 ![Starts read-only](https://img.shields.io/badge/starts-read--only-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -24,6 +25,8 @@ The toolkit automates object creation, account onboarding, log-channel enablemen
 |---|---|---|
 | `Tier0-Toolkit.ps1` v8 | Menu-driven toolkit: prerequisite checks, object creation, account onboarding, channel enablement, status, event decoder, enforce/rollback | Tier 0 management machine (RSAT) |
 | `Tier0-PawCheck.ps1` v3 | Read-only readiness check from a Windows PAW: DNS SRV, DC/MM reachability, time, RDP client policy | Non-domain-joined Windows PAW |
+| `Tier0-ManualChecks.ps1` v3 | Read-only verification of the silo across all domains of one forest, run by hand block by block: functional level, silo and policy per DC, members, reverse checks, DC host state, channel events | Tier 0 management machine or DC (RSAT) |
+| [`docs/ManualChecks.md`](docs/ManualChecks.md) | Documentation for `Tier0-ManualChecks.ps1`: how to run it, expected result of every block, known limitations | |
 | `Tier0-Toolkit.<domain>.json` | Settings, one per domain; created with defaults on first run and upgraded in place when a newer toolkit version adds keys | next to the toolkit |
 | `Tier0-Toolkit-Output\` | Plan files, reports (CSV), transcript | next to the toolkit |
 
@@ -73,7 +76,7 @@ Menu items 1–8 are in execution order; run them top to bottom per domain.
 | `9` | Rollback (root only) | Policy + silo back to audit |
 | `10` | Remove account | Clears the assigned attribute, revokes silo access, optional Protected Users removal |
 
-After enforcement the toolkit prints the remaining manual steps in order: require Remote Credential Guard on the MM (client policy), apply the deny-logon GPOs to the pilot scope, apply the network ACL to the DCs — re-testing after each. These three are applied in GPMC and on the network, not by the toolkit.
+After enforcement the toolkit prints the remaining manual steps in order: require Remote Credential Guard on the MM (client policy), apply the deny-logon GPOs to the pilot scope, apply the network ACL to the DCs, re-testing after each. These three are applied in GPMC and on the network, not by the toolkit.
 
 ## 🌐 Cross-domain accounts
 
@@ -83,8 +86,8 @@ Silos and policies are forest objects. Accounts from any domain can be members; 
 
 - **Status (`5`)**: every silo member must show `Assigned = True`. *Permitted but not assigned* means the KDC does not apply the silo to that object.
 - **Events (`6`)**, 305 decoder:
-  - Device blank, result `0x12` — the request was **unarmored**: Kerberos client armoring GPO missing on the source, or the source is not domain-joined.
-  - Device named, result `0xC` — armored and evaluated, device not in the silo **or not rebooted** since assignment.
+  - Device blank, result `0x12` - the request was **unarmored**: Kerberos client armoring GPO missing on the source, or the source is not domain-joined.
+  - Device named, result `0xC` - armored and evaluated, device not in the silo **or not rebooted** since assignment.
   - After enforcement the same cases appear as **105**.
 - **Prerequisite report (`1`)**: `FAIL` must be resolved; `SKIP` means the host was unreachable over WinRM and must be checked by hand; `WARN` is advisory.
 
@@ -93,7 +96,7 @@ Silos and policies are forest objects. Accounts from any domain can be members; 
 One function produces this block for both menu `1` and menu `5`, so the table shape and CSV columns are identical:
 
 - silo and user policy present, enforce state of each (with a warning when they differ), policy bound to the silo, TGT lifetime, from-condition set;
-- **one row per configured object, always**: every DC of the domain (enumerated), every management machine and every Tier 0 account from the settings file gets an explicit verdict — `permitted + assigned` (OK), `permitted but NOT assigned` / `assigned but NOT permitted` / `not a silo member` (FAIL once the silo exists), or `not found`;
+- **one row per configured object, always**: every DC of the domain (enumerated), every management machine and every Tier 0 account from the settings file gets an explicit verdict - `permitted + assigned` (OK), `permitted but NOT assigned` / `assigned but NOT permitted` / `not a silo member` (FAIL once the silo exists), or `not found`;
 - **members not in the settings file** are listed separately (silo outward), so strays and other domains' objects still show, with the same assigned check.
 
 ## 🚫 Deny-logon GPO check
@@ -131,6 +134,12 @@ This is a configuration check, not an effective-rights check; the resulting stat
 ```
 Prints and saves a report: DC discovery via SRV records, A-record resolution, TCP 88/389 to DCs and 3389 to MMs, clock offset, classic `mstsc.exe` presence and the credential-delegation client policy. It changes nothing.
 
+## 🔬 Manual checks
+
+`Tier0-ManualChecks.ps1` verifies the silo by hand across every domain of the forest and changes nothing. Edit the three values in block 0 (`$Domains` with the root first, `$SiloName`, `$Hours`), run block 0, then run any other block on its own. It reads the silo and policy from every DC, every member from its own domain, the host state of every DC over WinRM and the events of the three Authentication channels, so domains can be compared with each other.
+
+Blocks, expected results and known limitations are in [`docs/ManualChecks.md`](docs/ManualChecks.md).
+
 ## ⚠️ Known limitations (v1)
 
 - No automation of GPOs (armoring, RCG host setting, URA deny-logon). The prerequisite report tells you whether they are in effect.
@@ -144,8 +153,8 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, README v10 — 2026-11-20. Both scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). Version history is kept at the top of each script.
+Toolkit v8, PAW checker v3, manual checks v3, README v11, 2026-11-20. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). Version history is kept at the top of each script.
 
 ## 📄 License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT, see [`LICENSE`](LICENSE).
