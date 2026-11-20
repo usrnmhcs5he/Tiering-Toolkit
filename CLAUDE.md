@@ -60,7 +60,6 @@ rolled out across many production domains by operations staff.
    phase/section references to external documents; the script and README are
    self-contained. When a menu or message tells the admin what to do, it names
    the toolkit's own menu items.
-
 10. **Hygiene check before every commit and PR (the repo is public):** scan
     everything to be committed, the commit message and the PR text for:
     personal data (user names in paths such as `C:\Users\<name>` or
@@ -73,6 +72,8 @@ rolled out across many production domains by operations staff.
     stops the commit: report it to the project owner prominently, do not
     quietly fix and continue. State the result of the check when reporting
     the commit.
+11. **This file is owner-controlled:** changes to this file require the
+    project owner's explicit approval; propose the text and wait.
 
 ## Safety model invariants (the point of the tool — never weaken)
 
