@@ -1,4 +1,4 @@
-# Tier0-Toolkit — project instructions
+# Tier0-Toolkit: project instructions
 
 Interactive Windows PowerShell toolkit for Active Directory Tier 0 enforcement
 (Authentication Policy Silos, Authentication Policies, Protected Users), plus a
@@ -36,7 +36,7 @@ rolled out across many production domains by operations staff.
    strings before remoting, or passed via `-ArgumentList`).
 6. **Hygiene (GitHub-published):** no real hostnames, IP addresses, domain
    names, customer or site identifiers, credentials, tokens or internal
-   subnets — in code, comments, examples or generated output defaults.
+   subnets - in code, comments, examples or generated output defaults.
    Examples use the fictional forest `lab.sk` (root), `rats.lab.sk` (child),
    hosts `DC01`, `MGMT01`, account `t0-demo-adm`. Settings JSON files and the
    output folder contain real environment data and are gitignored; never
@@ -53,7 +53,7 @@ rolled out across many production domains by operations staff.
    commits with `git log`; never use a private email address) and check
    `git log --format='%an <%ae> | %cn <%ce>%n%B'` before every push.
 8. **Accuracy over speed:** never guess cmdlet names, parameters, attribute
-   names, event IDs or registry paths — verify against Microsoft Learn (or a
+   names, event IDs or registry paths - verify against Microsoft Learn (or a
    lab run) first. Unverified claims in comments or README carry an explicit
    confidence marker; the project uses `[H]`/`[M]`/`[L]`.
 9. **Wording:** neutral statements and instructions with reasons. No
@@ -75,7 +75,7 @@ rolled out across many production domains by operations staff.
 11. **This file is owner-controlled:** changes to this file require the
     project owner's explicit approval; propose the text and wait.
 
-## Safety model invariants (the point of the tool — never weaken)
+## Safety model invariants (the point of the tool - never weaken)
 
 - Starts in **read-only** mode; only the menu `M` toggle enables execution.
 - Every write action builds a PLAN, prints it, and saves it to
@@ -107,8 +107,8 @@ rolled out across many production domains by operations staff.
 - Audit-mode silo events are 305/306; enforced are 105/106 (TGT/service
   ticket) and 101 (NTLM); Protected Users channels use 303/100/104. A 305/105
   with a blank Device Name means an unarmored request; with a named device and
-  result 0xC it means the device lacks the silo claim (usually: not rebooted
-  since assignment).
+  result 0xC it means the device lacks the silo claim (usually: computer
+  ticket not refreshed since enforcement).
 - The four Authentication operational channels are disabled by default and
   must be enabled per DC (plus ProtectedUser-Client on MMs).
 - `Remote Credential Guard` proof is the absence of a 4768 for the account
@@ -116,15 +116,36 @@ rolled out across many production domains by operations staff.
   field.
 - User-rights (SeDeny*) lists are not merged across GPOs; the winning GPO's
   list replaces the others.
+- Lab-confirmed: the four Authentication channels belong to the provider
+  `Microsoft-Windows-AuthenticationProvider`
+  (`dddc1d91-51a1-4a8d-95b5-350c4ee3d809`, lsasrv.dll), not to
+  "Microsoft-Windows-Authentication".
+- Lab-confirmed: on Server 2022 the client-side error event in
+  `ProtectedUser-Client` is 101; Microsoft's Protected Users page lists it
+  as 104.
+- Lab-confirmed: 4xxx events come from Microsoft-Windows-Security-Auditing
+  and are controlled by the audit policy; 1xx and 3xx events are controlled
+  by enabling the channel. 305 and 306 have no Security log counterpart.
+- Lab-confirmed: the silo claim is issued only while the silo is enforced.
+  Member computers need a computer ticket issued after enforcement
+  (`klist -li 0x3e7 purge`); a reboot before enforcement has no effect.
+- Lab-confirmed: the silo binds the user policy only; computer and service
+  slots stay empty. ADAC cannot save that state.
+- Lab-confirmed: the silo Enforce flag governs silo members; the policy flag
+  applies only to directly assigned accounts. Accounts are never assigned to
+  the policy directly.
 
 ## Repository layout
 
-- `Tier0-Toolkit.ps1` — main menu-driven toolkit (run on a Tier 0 management
+- `Tier0-Toolkit.ps1`: main menu-driven toolkit (run on a Tier 0 management
   machine; on-DC runs supported for lab use).
-- `Tier0-PawCheck.ps1` — standalone read-only checker for a non-domain-joined
+- `Tier0-PawCheck.ps1`: standalone read-only checker for a non-domain-joined
   Windows PAW (no RSAT).
-- `README.md` — operator documentation; kept in lockstep with the scripts.
-- `BACKLOG.md` — open items and planned work; update it when items land.
+- `Tier0-ManualChecks.ps1`: read-only, block-by-block verification of the
+  silo across all domains of one forest.
+- `docs/ManualChecks.md`: documentation for `Tier0-ManualChecks.ps1`.
+- `README.md`: operator documentation; kept in lockstep with the scripts.
+- `BACKLOG.md`: open items and planned work; update it when items land.
 - Not in the repo: the internal rollout document (architecture, phased
   rollout, gotchas, verification scenarios) is maintained separately by the
   project owner; do not recreate or import it here.
