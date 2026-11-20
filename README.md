@@ -10,6 +10,7 @@
 ![Tier0-PawCheck](https://img.shields.io/badge/Tier0--PawCheck-v3-2EA44F)
 ![PSScriptAnalyzer](https://img.shields.io/badge/PSScriptAnalyzer-5.1%20compatibility%20clean-brightgreen)
 ![Starts read-only](https://img.shields.io/badge/starts-read--only-yellow)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 </div>
 
@@ -143,4 +144,8 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, README v9 — 2026-11-20. Both scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). Version history is kept at the top of each script.
+Toolkit v8, PAW checker v3, README v10 — 2026-11-20. Both scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). Version history is kept at the top of each script.
+
+## 📄 License
+
+MIT — see [`LICENSE`](LICENSE).
