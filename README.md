@@ -10,6 +10,7 @@
 ![Tier0-PawCheck](https://img.shields.io/badge/Tier0--PawCheck-v3-2EA44F)
 ![Tier0-ManualChecks](https://img.shields.io/badge/Tier0--ManualChecks-v3-2EA44F)
 ![PSScriptAnalyzer](https://img.shields.io/badge/PSScriptAnalyzer-5.1%20compatibility%20clean-brightgreen)
+[![CI](https://github.com/usrnmhcs5he/Tiering-Toolkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/usrnmhcs5he/Tiering-Toolkit/actions/workflows/ci.yml)
 ![Starts read-only](https://img.shields.io/badge/starts-read--only-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -153,7 +154,7 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, manual checks v3, README v12, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v1 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. Version history is kept at the top of each script.
+Toolkit v8, PAW checker v3, manual checks v3, README v13, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v2 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. The CI badge at the top shows the result of the latest run on `main`. Version history is kept at the top of each script.
 
 ## 📄 License
 

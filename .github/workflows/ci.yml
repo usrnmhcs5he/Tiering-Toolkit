@@ -8,6 +8,9 @@
 #  VERSION HISTORY
 #    v1  2026-11-22  Initial release: parse check, PSScriptAnalyzer errors and
 #                    PSUseCompatible* warnings fail the run.
+#    v2  2026-11-22  actions/checkout v4 replaced by v7.0.1 (v4 targets the
+#                    deprecated Node.js 20 runtime and raised a warning on
+#                    every run). No change to the checks.
 # =============================================================================
 name: CI
 
@@ -24,7 +27,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Parser check
         shell: powershell
@@ -82,4 +85,4 @@ jobs:
           }
           if ($failed -gt 0) { exit 1 }
 
-# ci.yml v1 end
+# ci.yml v2 end
