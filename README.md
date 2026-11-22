@@ -29,6 +29,7 @@ The toolkit automates object creation, account onboarding, log-channel enablemen
 | `Tier0-ManualChecks.ps1` v3 | Read-only verification of the silo across all domains of one forest, run by hand block by block: functional level, silo and policy per DC, members, reverse checks, DC host state, channel events | Tier 0 management machine or DC (RSAT) |
 | [`docs/ManualChecks.md`](docs/ManualChecks.md) | Documentation for `Tier0-ManualChecks.ps1`: how to run it, expected result of every block, known limitations | |
 | `Tier0-Toolkit.<domain>.json` | Settings, one per domain; created with defaults on first run and upgraded in place when a newer toolkit version adds keys | next to the toolkit |
+| [`SECURITY.md`](SECURITY.md) | How to report a security problem in the scripts privately | n/a |
 | `Tier0-Toolkit-Output\` | Plan files, reports (CSV), transcript | next to the toolkit |
 
 ## 📦 Requirements
@@ -154,7 +155,7 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, manual checks v3, README v13, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v2 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. The CI badge at the top shows the result of the latest run on `main`. Version history is kept at the top of each script.
+Toolkit v8, PAW checker v3, manual checks v3, README v14, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v2 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. The CI badge at the top shows the result of the latest run on `main`. Version history is kept at the top of each script.
 
 ## 📄 License
 
