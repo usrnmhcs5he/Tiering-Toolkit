@@ -1,0 +1,85 @@
+# =============================================================================
+#  ci.yml
+#  Verification of every *.ps1 file in the repository root on each push:
+#  PowerShell parser and PSScriptAnalyzer with the Windows PowerShell 5.1
+#  compatibility rules. Runs under Windows PowerShell 5.1 (powershell.exe).
+#  Nothing is executed from the scripts; they are only parsed and analysed.
+#
+#  VERSION HISTORY
+#    v1  2026-11-22  Initial release: parse check, PSScriptAnalyzer errors and
+#                    PSUseCompatible* warnings fail the run.
+# =============================================================================
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Parser and PSScriptAnalyzer (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Parser check
+        shell: powershell
+        run: |
+          "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
+          $files = @(Get-ChildItem -Path . -Filter *.ps1 -File)
+          if ($files.Count -eq 0) { Write-Error 'No *.ps1 files found.'; exit 1 }
+          $failed = 0
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            "{0}: {1} parse error(s)" -f $file.Name, @($errors).Count
+            foreach ($e in @($errors)) {
+              "  line {0}: {1}" -f $e.Extent.StartLineNumber, $e.Message
+              $failed++
+            }
+          }
+          if ($failed -gt 0) { exit 1 }
+
+      - name: Install PSScriptAnalyzer
+        shell: powershell
+        run: |
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force | Out-Null
+          Install-Module -Name PSScriptAnalyzer -MinimumVersion 1.23.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Import-Module PSScriptAnalyzer
+          "PSScriptAnalyzer $((Get-Module PSScriptAnalyzer).Version)"
+
+      - name: PSScriptAnalyzer
+        shell: powershell
+        run: |
+          $settings = @{
+            Rules = @{
+              PSUseCompatibleSyntax = @{
+                Enable         = $true
+                TargetVersions = @('5.1')
+              }
+              PSUseCompatibleCommands = @{
+                Enable         = $true
+                TargetProfiles = @('win-8_x64_10.0.17763.0_5.1.17763.316_x64_4.0.30319.42000_framework')
+              }
+            }
+          }
+          $failed = 0
+          foreach ($file in @(Get-ChildItem -Path . -Filter *.ps1 -File)) {
+            $all = @(Invoke-ScriptAnalyzer -Path $file.FullName -Settings $settings)
+            $blocking = @($all | Where-Object { $_.Severity -in 'Error', 'ParseError' -or $_.RuleName -like 'PSUseCompatible*' })
+            "{0}: {1} finding(s), {2} blocking" -f $file.Name, $all.Count, $blocking.Count
+            $all | Group-Object RuleName | Sort-Object Name | ForEach-Object { "  {0,4}  {1}" -f $_.Count, $_.Name }
+            foreach ($b in $blocking) {
+              "  BLOCKING line {0}: [{1}] {2}" -f $b.Line, $b.RuleName, $b.Message
+              $failed++
+            }
+          }
+          if ($failed -gt 0) { exit 1 }
+
+# ci.yml v1 end

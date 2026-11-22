@@ -153,7 +153,7 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, manual checks v3, README v11, 2026-11-20. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). Version history is kept at the top of each script.
+Toolkit v8, PAW checker v3, manual checks v3, README v12, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v1 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. Version history is kept at the top of each script.
 
 ## 📄 License
 
