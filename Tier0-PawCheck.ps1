@@ -9,6 +9,17 @@
    v1  2026-10-21  Initial release.
    v2  2026-10-21  Parser + PSScriptAnalyzer pass; $null-left comparison.
    v3  2026-10-21  Self-contained wording (no design-option references).
+   v4  2026-11-24  Name resolution with a single domain controller: the DC
+                   list is kept as an array, so the DC name and the first
+                   management machine name are no longer joined into one
+                   name (reported as "DNS name does not exist") and each
+                   host gets its own A-record row.
+   v5  2026-11-24  Multi-domain: -Domain takes one or more domains (forest
+                   root and child domains), as a list or comma-separated.
+                   SRV discovery, DC name resolution, TCP 88/389 and the
+                   clock offset are checked for every domain; a domain with
+                   no DC found is reported as its own FAIL row. An SRV query
+                   that returns no records is a FAIL instead of an empty OK.
 
  REQUIREMENTS
    - Windows 10/11, Windows PowerShell 5.1 (no RSAT, no AD module)
@@ -16,13 +27,14 @@
 
  Nothing is changed on the PAW. Output is printed and saved next to the
  script as Tier0-PawCheck-<timestamp>.txt.
- Example domain used in prompts: lab.sk; example MM: mgmt01.lab.sk
+ Example domains used in prompts: lab.sk (root), rats.lab.sk (child);
+ example MM: mgmt01.lab.sk
 ===============================================================================
 #>
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [string]$Domain,                        # AD domain FQDN, e.g. lab.sk
+    [string[]]$Domain,                      # AD domain FQDN(s), forest root first, e.g. lab.sk,rats.lab.sk
     [string[]]$ManagementMachines           # FQDNs, e.g. mgmt01.lab.sk
 )
 $ErrorActionPreference = 'Continue'
@@ -33,28 +45,38 @@ function Row([string]$status, [string]$item, [string]$detail) {
     Say ("  [{0,-4}] {1,-55} {2}" -f $status, $item, $detail) $c
 }
 
-if (-not $Domain) { $Domain = Read-Host 'AD domain FQDN (e.g. lab.sk)' }
+if (-not $Domain) { $Domain = Read-Host 'AD domain FQDNs, comma-separated, forest root first (e.g. lab.sk,rats.lab.sk)' }
 if (-not $ManagementMachines) { $ManagementMachines = (Read-Host 'Management machine FQDNs, comma-separated (e.g. mgmt01.lab.sk)') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } }
-$Domain = $Domain.Trim().ToLower()
+# Accept a list or one comma-separated string for both parameters (powershell.exe -File passes a,b as one string).
+$Domain = @($Domain | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ } | Select-Object -Unique)
+$ManagementMachines = @($ManagementMachines | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 Say ''
-Say "Tier0-PawCheck v3  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  -  host $env:COMPUTERNAME" 'Cyan'
+Say "Tier0-PawCheck v5  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  -  host $env:COMPUTERNAME" 'Cyan'
 Say ("  Domain joined: {0}   Entra joined: {1}" -f (Get-CimInstance Win32_ComputerSystem).PartOfDomain, ($null -ne (dsregcmd /status 2>$null | Select-String 'AzureAdJoined\s*:\s*YES')))
+Say ("  Domains: {0}" -f ($Domain -join ', '))
 Say ''
 
-# 1. DNS: SRV records the Kerberos client needs to find a KDC
+# 1. DNS: SRV records the Kerberos client needs to find a KDC, per domain
 Say '1. DNS SRV records' 'White'
 $dcHosts = @()
-foreach ($srv in @("_kerberos._tcp.dc._msdcs.$Domain", "_ldap._tcp.dc._msdcs.$Domain", "_kerberos._udp.$Domain")) {
-    try {
-        $r = Resolve-DnsName -Name $srv -Type SRV -ErrorAction Stop | Where-Object Type -eq 'SRV'
-        $targets = @($r | ForEach-Object { $_.NameTarget }) | Sort-Object -Unique
-        $dcHosts += $targets
-        Row 'OK' $srv ($targets -join ', ')
-    } catch { Row 'FAIL' $srv $_.Exception.Message }
+$dcByDomain = @{}
+foreach ($d in $Domain) {
+    $found = @()
+    foreach ($srv in @("_kerberos._tcp.dc._msdcs.$d", "_ldap._tcp.dc._msdcs.$d", "_kerberos._udp.$d")) {
+        try {
+            $r = Resolve-DnsName -Name $srv -Type SRV -ErrorAction Stop | Where-Object Type -eq 'SRV'
+            $targets = @($r | ForEach-Object { $_.NameTarget } | Where-Object { $_ } | Sort-Object -Unique)
+            if ($targets.Count -gt 0) { $found += $targets; Row 'OK' $srv ($targets -join ', ') }
+            else { Row 'FAIL' $srv 'query answered without SRV records' }
+        } catch { Row 'FAIL' $srv $_.Exception.Message }
+    }
+    $found = @($found | Sort-Object -Unique)
+    $dcByDomain[$d] = $found
+    $dcHosts += $found
+    if ($found.Count -eq 0) { Row 'FAIL' "DC discovery $d" 'No DC names resolved for this domain - Kerberos cannot work for its accounts from this PAW. Check VPN/DNS.' }
 }
-$dcHosts = $dcHosts | Sort-Object -Unique
-if (-not $dcHosts) { Row 'FAIL' 'DC discovery' 'No DC names resolved - Kerberos cannot work from this PAW. Check VPN/DNS.' }
+$dcHosts = @($dcHosts | Sort-Object -Unique)
 
 # 2. Forward and reverse resolution of DCs and MMs
 Say ''
@@ -85,12 +107,15 @@ foreach ($m in $ManagementMachines) {
 # 4. Time (Kerberos tolerates 5 minutes)
 Say ''
 Say '4. Time' 'White'
-try {
-    $dc = $dcHosts | Select-Object -First 1
-    $w = w32tm /stripchart /computer:$dc /samples:1 /dataonly 2>$null | Select-String -Pattern ',\s*([+-]\d+\.\d+)s' | Select-Object -First 1
-    if ($w) { $off = [double]$w.Matches[0].Groups[1].Value; Row ($(if ([math]::Abs($off) -lt 120) {'OK'} else {'FAIL'})) "Clock offset vs $dc" ("{0:+0.0;-0.0}s (must stay under 300s)" -f $off) }
-    else { Row 'WARN' 'Clock offset' 'could not measure (NTP/UDP 123 to the DC may be blocked - acceptable if the PAW syncs elsewhere)' }
-} catch { Row 'WARN' 'Clock offset' $_.Exception.Message }
+foreach ($d in $Domain) {
+    $dc = @($dcByDomain[$d]) | Select-Object -First 1
+    if (-not $dc) { Row 'WARN' "Clock offset $d" 'not measured: no DC found for this domain'; continue }
+    try {
+        $w = w32tm /stripchart /computer:$dc /samples:1 /dataonly 2>$null | Select-String -Pattern ',\s*([+-]\d+\.\d+)s' | Select-Object -First 1
+        if ($w) { $off = [double]$w.Matches[0].Groups[1].Value; Row ($(if ([math]::Abs($off) -lt 120) {'OK'} else {'FAIL'})) "Clock offset vs $dc" ("{0:+0.0;-0.0}s (must stay under 300s)" -f $off) }
+        else { Row 'WARN' "Clock offset vs $dc" 'could not measure (NTP/UDP 123 to the DC may be blocked - acceptable if the PAW syncs elsewhere)' }
+    } catch { Row 'WARN' "Clock offset vs $dc" $_.Exception.Message }
+}
 
 # 5. RDP client capability for Remote Credential Guard (optional on this hop; informational)
 Say ''
@@ -109,8 +134,10 @@ Row ($(if ($saved) {'OK'} else {'WARN'})) 'Deny delegating saved credentials' $(
 # 6. Functional Kerberos test (optional): obtain a TGT for a Tier 0 account
 Say ''
 Say '6. Optional functional test' 'White'
-Say '   Run manually with a Tier 0 account (password prompt, nothing stored):' 'Gray'
-Say ("     runas /user:{0}\<account> ""powershell.exe -NoExit -Command Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-Command','klist tgt'""" -f $Domain.Split('.')[0].ToUpper()) 'Gray'
+Say '   Run manually with a Tier 0 account of the domain to test (password prompt, nothing stored):' 'Gray'
+foreach ($d in $Domain) {
+    Say ("     runas /user:<account>@{0} ""powershell.exe -NoExit -Command Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-Command','klist tgt'""" -f $d) 'Gray'
+}
 Say '   Expected: AES-256 TGT, 4h lifetime. On the DC: event 303 (ProtectedUserSuccesses). For a silo account a 305 with' 'Gray'
 Say '   Device Name blank appears, because the PAW is not domain-joined and cannot armor the request. In normal use the account' 'Gray'
 Say '   is typed into mstsc and the management machine obtains the ticket, so no 305 appears.' 'Gray'
@@ -119,4 +146,4 @@ $file = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) ("Tier0-PawC
 $out | Set-Content -Path $file -Encoding UTF8
 Say ''
 Say "Saved: $file" 'Cyan'
-# Tier0-PawCheck.ps1 v3 end
+# Tier0-PawCheck.ps1 v5 end

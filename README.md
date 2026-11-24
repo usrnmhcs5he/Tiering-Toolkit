@@ -7,7 +7,7 @@
 ![Windows PowerShell](https://img.shields.io/badge/Windows%20PowerShell-5.1-5391FE?logo=powershell&logoColor=white)
 ![Active Directory](https://img.shields.io/badge/Active%20Directory-DFL%202012%20R2%2B-0078D4)
 ![Tier0-Toolkit](https://img.shields.io/badge/Tier0--Toolkit-v8-2EA44F)
-![Tier0-PawCheck](https://img.shields.io/badge/Tier0--PawCheck-v3-2EA44F)
+![Tier0-PawCheck](https://img.shields.io/badge/Tier0--PawCheck-v5-2EA44F)
 ![Tier0-ManualChecks](https://img.shields.io/badge/Tier0--ManualChecks-v3-2EA44F)
 ![PSScriptAnalyzer](https://img.shields.io/badge/PSScriptAnalyzer-5.1%20compatibility%20clean-brightgreen)
 [![CI](https://github.com/usrnmhcs5he/Tiering-Toolkit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/usrnmhcs5he/Tiering-Toolkit/actions/workflows/ci.yml)
@@ -25,7 +25,7 @@ The toolkit automates object creation, account onboarding, log-channel enablemen
 | File | Purpose | Runs on |
 |---|---|---|
 | `Tier0-Toolkit.ps1` v8 | Menu-driven toolkit: prerequisite checks, object creation, account onboarding, channel enablement, status, event decoder, enforce/rollback | Tier 0 management machine (RSAT) |
-| `Tier0-PawCheck.ps1` v3 | Read-only readiness check from a Windows PAW: DNS SRV, DC/MM reachability, time, RDP client policy | Non-domain-joined Windows PAW |
+| `Tier0-PawCheck.ps1` v5 | Read-only readiness check from a Windows PAW, for one or more domains: DNS SRV, DC/MM reachability, time, RDP client policy | Non-domain-joined Windows PAW |
 | `Tier0-ManualChecks.ps1` v3 | Read-only verification of the silo across all domains of one forest, run by hand block by block: functional level, silo and policy per DC, members, reverse checks, DC host state, channel events | Tier 0 management machine or DC (RSAT) |
 | [`docs/ManualChecks.md`](docs/ManualChecks.md) | Documentation for `Tier0-ManualChecks.ps1`: how to run it, expected result of every block, known limitations | |
 | `Tier0-Toolkit.<domain>.json` | Settings, one per domain; created with defaults on first run and upgraded in place when a newer toolkit version adds keys | next to the toolkit |
@@ -133,8 +133,11 @@ This is a configuration check, not an effective-rights check; the resulting stat
 
 ```powershell
 .\Tier0-PawCheck.ps1 -Domain lab.sk -ManagementMachines mgmt01.lab.sk
+.\Tier0-PawCheck.ps1 -Domain lab.sk,rats.lab.sk -ManagementMachines mgmt01.lab.sk   # root and child domain
 ```
-Prints and saves a report: DC discovery via SRV records, A-record resolution, TCP 88/389 to DCs and 3389 to MMs, clock offset, classic `mstsc.exe` presence and the credential-delegation client policy. It changes nothing.
+`-Domain` takes one or more domains, forest root first; without parameters the script asks for them as a comma-separated list. Name every domain whose Tier 0 accounts are used from the PAW: the DCs of each are discovered and checked separately, and a domain with no reachable DC is reported as its own `FAIL` row.
+
+Prints and saves a report: per domain DC discovery via SRV records, A-record resolution, TCP 88/389 to DCs and 3389 to MMs, clock offset against one DC of each domain, classic `mstsc.exe` presence and the credential-delegation client policy. It changes nothing.
 
 ## 🔬 Manual checks
 
@@ -155,7 +158,7 @@ No hostnames, addresses, account names or organisation identifiers are embedded.
 
 ## 🏷️ Version
 
-Toolkit v8, PAW checker v3, manual checks v3, README v14, 2026-11-22. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v2 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. The CI badge at the top shows the result of the latest run on `main`. Version history is kept at the top of each script.
+Toolkit v8, PAW checker v5, manual checks v3, README v16, 2026-11-24. All three scripts pass the PowerShell parser and PSScriptAnalyzer 1.23 with the Windows PowerShell 5.1 compatibility rules (no errors). `.github/workflows/ci.yml` v2 repeats both checks on GitHub on every push, under Windows PowerShell 5.1: a parse error, a PSScriptAnalyzer error or a `PSUseCompatible*` warning fails the run. The workflow only parses and analyses the scripts; it does not run them. The CI badge at the top shows the result of the latest run on `main`. Version history is kept at the top of each script.
 
 ## 📄 License
 
