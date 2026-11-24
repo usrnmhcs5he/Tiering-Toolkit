@@ -9,6 +9,11 @@
    v1  2026-10-21  Initial release.
    v2  2026-10-21  Parser + PSScriptAnalyzer pass; $null-left comparison.
    v3  2026-10-21  Self-contained wording (no design-option references).
+   v4  2026-11-24  Name resolution with a single domain controller: the DC
+                   list is kept as an array, so the DC name and the first
+                   management machine name are no longer joined into one
+                   name (reported as "DNS name does not exist") and each
+                   host gets its own A-record row.
 
  REQUIREMENTS
    - Windows 10/11, Windows PowerShell 5.1 (no RSAT, no AD module)
@@ -38,7 +43,7 @@ if (-not $ManagementMachines) { $ManagementMachines = (Read-Host 'Management mac
 $Domain = $Domain.Trim().ToLower()
 
 Say ''
-Say "Tier0-PawCheck v3  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  -  host $env:COMPUTERNAME" 'Cyan'
+Say "Tier0-PawCheck v4  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  -  host $env:COMPUTERNAME" 'Cyan'
 Say ("  Domain joined: {0}   Entra joined: {1}" -f (Get-CimInstance Win32_ComputerSystem).PartOfDomain, ($null -ne (dsregcmd /status 2>$null | Select-String 'AzureAdJoined\s*:\s*YES')))
 Say ''
 
@@ -53,7 +58,7 @@ foreach ($srv in @("_kerberos._tcp.dc._msdcs.$Domain", "_ldap._tcp.dc._msdcs.$Do
         Row 'OK' $srv ($targets -join ', ')
     } catch { Row 'FAIL' $srv $_.Exception.Message }
 }
-$dcHosts = $dcHosts | Sort-Object -Unique
+$dcHosts = @($dcHosts | Sort-Object -Unique)
 if (-not $dcHosts) { Row 'FAIL' 'DC discovery' 'No DC names resolved - Kerberos cannot work from this PAW. Check VPN/DNS.' }
 
 # 2. Forward and reverse resolution of DCs and MMs
@@ -119,4 +124,4 @@ $file = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) ("Tier0-PawC
 $out | Set-Content -Path $file -Encoding UTF8
 Say ''
 Say "Saved: $file" 'Cyan'
-# Tier0-PawCheck.ps1 v3 end
+# Tier0-PawCheck.ps1 v4 end
