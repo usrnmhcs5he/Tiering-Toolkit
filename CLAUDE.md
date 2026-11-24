@@ -74,6 +74,9 @@ rolled out across many production domains by operations staff.
     the commit.
 11. **This file is owner-controlled:** changes to this file require the
     project owner's explicit approval; propose the text and wait.
+12. **GitHub steps for the owner:** when a step must be done by the project
+    owner on GitHub (tag, release, settings), give a ready-to-click link with
+    the fields prefilled, not only instructions.
 
 ## Safety model invariants (the point of the tool - never weaken)
 
